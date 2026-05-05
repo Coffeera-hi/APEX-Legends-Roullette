@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>APEX Loadout Roulette</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    :root {
+      --bg: #101116;
+      --panel: #191b22;
+      --text: #f5f5f5;
+      --muted: #a8acb8;
+      --line: rgba(255,255,255,.18);
+      --accent: #e23b32;
+      --accent-2: #ffb03a;
+      --shadow: rgba(0,0,0,.35);
+      --chip: rgba(255,255,255,.08);
+    }
+    body.light {
+      --bg: #f4f5f8;
+      --panel: #ffffff;
+      --text: #14161d;
+      --muted: #5b6170;
+      --line: rgba(0,0,0,.18);
+      --shadow: rgba(0,0,0,.12);
+      --chip: rgba(0,0,0,.06);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(226,59,50,.18), transparent 30%),
+        radial-gradient(circle at 80% 10%, rgba(255,176,58,.12), transparent 28%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .app { max-width: 1180px; margin: 0 auto; padding: 28px 18px 44px; }
+    .hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+    h1 { margin: 0; font-size: clamp(28px, 4vw, 48px); letter-spacing: .04em; line-height: 1; }
+    .subtitle { margin-top: 8px; color: var(--muted); font-size: 14px; }
+    .badge { border: 1px solid var(--line); padding: 8px 14px; transform: skew(-14deg); background: var(--chip); white-space: nowrap; }
+    .badge span { display: inline-block; transform: skew(14deg); }
+    .panel {
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 18px 50px var(--shadow);
+      backdrop-filter: blur(8px);
+      margin-bottom: 18px;
+    }
+    .controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .field label, .group-title { display: block; color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+    select, button {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 11px 12px;
+      background: var(--chip);
+      color: var(--text);
+      font-size: 15px;
+      outline: none;
+    }
+    button { cursor: pointer; transition: transform .15s ease, border-color .15s ease; }
+    button:hover { transform: translateY(-1px); border-color: var(--accent-2); }
+    .option-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+    .option {
+      user-select: none;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 9px 12px;
+      background: var(--chip);
+      color: var(--text);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+    .option input { accent-color: var(--accent); }
+    .toolbar { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: end; }
+    .draw-btn {
+      min-width: 190px;
+      background: linear-gradient(135deg, var(--accent), #9f191f);
+      color: white;
+      border: 0;
+      font-weight: 800;
+      letter-spacing: .06em;
+      transform: skew(-12deg);
+      border-radius: 10px;
+      box-shadow: 0 12px 30px rgba(226,59,50,.25);
+    }
+    .draw-btn span { display: inline-block; transform: skew(12deg); }
+    .results {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(220px, 1fr));
+      gap: 8px;
+      margin: 22px 0 10px;
+    }
+    .player-block { min-width: 0; }
+    .parallelogram {
+      transform: skew(-13deg);
+      border: 2px solid var(--border);
+      background: color-mix(in srgb, var(--fill) 76%, transparent);
+      box-shadow: 0 14px 35px var(--shadow);
+      overflow: hidden;
+      position: relative;
+    }
+    .parallelogram > div {
+      transform: skew(13deg);
+      height: 100%;
+      position: relative;
+    }
+    .legend-card {
+      height: 126px;
+      min-height: 126px;
+      display: grid;
+      place-items: stretch;
+      padding: 0 14px;
+      margin-bottom: 6px;
+      position: relative;
+      overflow: hidden;
+    }
+    .legend-frame {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+    }
+    .legend-art {
+      width: auto;
+      height: 205px;
+      max-width: none;
+      object-fit: contain;
+      object-position: center top;
+      display: block;
+      transform: translateY(-8px) scale(1.14);
+      transform-origin: top center;
+    }
+    .weapon-art { display: none !important; }
+    .img-fallback { display: none !important; }
+    .legend-name { display: none !important; }
+    .legend-small { display: none; }
+    .guns {
+      display: flex;
+      flex-direction: row;
+      gap: 6px;
+      width: 100%;
+    }
+    .gun-card {
+      min-height: 104px;
+      flex: 1 1 0;
+      min-width: 0;
+      display: grid;
+      place-items: center;
+      padding: 10px 16px;
+    }
+    .gun-title { font-size: 12px; color: color-mix(in srgb, var(--text) 65%, transparent); margin-bottom: 3px; }
+    .gun-name { font-size: clamp(16px, 2vw, 22px); font-weight: 800; text-align: center; }
+    .empty { color: var(--muted); text-align: center; padding: 34px 10px; }
+    .history { display: grid; gap: 10px; }
+    .history-item { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: var(--chip); }
+    .history-head { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+    .history-rows { display: grid; gap: 4px; font-size: 14px; }
+    .warn { color: #ffcf66; font-size: 13px; margin-top: 8px; }
+    @media (max-width: 820px) {
+      .hero { display: block; }
+      .badge { display: inline-block; margin-top: 12px; }
+      .controls { grid-template-columns: 1fr; }
+      .toolbar { grid-template-columns: 1fr; }
+      .draw-btn { min-width: 0; }
+      .results { grid-template-columns: 1fr; gap: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useMemo, useState, useEffect } = React;
+
+    const I18N = {
+      zh: {
+        title: "APEX 英雄抽選器", sub: "英雄 × 槍枝 × 彈藥池規則", players: "人數", language: "語言", theme: "日夜間模式",
+        dark: "夜間", light: "日間", modes: "抽取模式", legends: "英雄", ammoTypes: "槍枝種類（依子彈）", randomGuns: "隨機槍枝",
+        ammoPool: "彈藥池選擇", noTeamDup: "全隊不重複武器", draw: "開始抽取", history: "抽取紀錄", noResult: "按下開始抽取後，結果會顯示在這裡。",
+        gun1: "Gun 1", gun2: "Gun 2", player: "Player", enabled: "啟用", warningMode: "請至少勾選一個抽取模式。", warningAmmo: "啟用槍枝相關抽取時，請至少勾選一種彈藥。"
+      },
+      en: {
+        title: "APEX Legends Roulette", sub: "Legend × Weapon × Ammo Pool Rules", players: "Players", language: "Language", theme: "Theme",
+        dark: "Dark", light: "Light", modes: "Draw Modes", legends: "Legends", ammoTypes: "Ammo Type", randomGuns: "Random Guns",
+        ammoPool: "Ammo Pool", noTeamDup: "No duplicate weapons in team", draw: "Draw", history: "History", noResult: "Press Draw to generate results.",
+        gun1: "Gun 1", gun2: "Gun 2", player: "Player", enabled: "Enabled", warningMode: "Select at least one draw mode.", warningAmmo: "Select at least one ammo type when weapon draw is enabled."
+      },
+      ja: {
+        title: "APEX ルーレット", sub: "レジェンド × 武器 × 弾薬ルール", players: "人数", language: "言語", theme: "テーマ",
+        dark: "ダーク", light: "ライト", modes: "抽選モード", legends: "レジェンド", ammoTypes: "弾薬タイプ", randomGuns: "ランダム武器",
+        ammoPool: "弾薬プール", noTeamDup: "チーム内武器重複なし", draw: "抽選開始", history: "履歴", noResult: "抽選開始を押すと結果が表示されます。",
+        gun1: "Gun 1", gun2: "Gun 2", player: "Player", enabled: "有効", warningMode: "抽選モードを1つ以上選択してください。", warningAmmo: "武器抽選を使う場合、弾薬タイプを1つ以上選択してください。"
+      }
+    };
+
+    const LEGENDS = [
+      "Alter", "Ash", "Axle", "Ballistic", "Bangalore", "Bloodhound", "Catalyst", "Caustic", "Conduit", "Crypto", "Fuse", "Gibraltar", "Horizon", "Lifeline", "Loba", "Mad Maggie", "Mirage", "Newcastle", "Octane", "Pathfinder", "Rampart", "Revenant", "Seer", "Sparrow", "Valkyrie", "Vantage", "Wattson", "Wraith"
+    ];
+
+    const LEGEND_ZH = {
+      "Alter": "變幻", "Ash": "艾許", "Axle": "艾瑟兒", "Ballistic": "彈道", "Bangalore": "邦加羅爾", "Bloodhound": "尋血犬", "Catalyst": "摧化姬", "Caustic": "腐蝕", "Conduit": "導管", "Crypto": "暗碼士", "Fuse": "轟哥", "Gibraltar": "直布羅陀", "Horizon": "天際線", "Lifeline": "生命線", "Loba": "蘿芭", "Mad Maggie": "瘋狂瑪吉", "Mirage": "幻象", "Newcastle": "紐卡索", "Octane": "辛烷", "Pathfinder": "探路者", "Rampart": "蕾帕特", "Revenant": "亡靈", "Seer": "席爾", "Sparrow": "雀影", "Valkyrie": "瓦爾基里", "Vantage": "萬塔潔", "Wattson": "華森", "Wraith": "惡靈"
+    };
+
+    const WEAPON_ZH = {
+      "R-301 Carbine": "R-301", "R-99 SMG": "R-99", "Alternator SMG": "轉換者衝鋒槍", "RE-45 Auto": "RE-45", "P2020": "P2020", "G7 Scout": "G7 斥候",
+      "VK-47 Flatline": "平行步槍", "Hemlok Burst AR": "汗洛突擊步槍", "CAR SMG": "CAR 衝鋒槍", "30-30 Repeater": "30-30 連發槍", "M600 Spitfire": "M600 噴火槍", "Wingman": "小幫手",
+      "HAVOC Rifle": "哈博克", "Nemesis Burst AR": "死敵", "Volt SMG": "電能衝鋒槍", "L-STAR EMG": "L-STAR", "Triple Take": "三重擊", "Devotion LMG": "專注輕機槍",
+      "Peacekeeper": "和平使者", "Mastiff Shotgun": "獒犬霰彈槍", "EVA-8 Auto": "EVA-8 自動霰彈槍", "Mozambique Shotgun": "莫三比克", "Rampage LMG": "狂暴輕機槍",
+      "Charge Rifle": "電能步槍", "Longbow DMR": "長弓", "Sentinel": "哨兵", "Kraber .50-Cal": "克萊博 .50 口徑狙擊槍", "Bocek Compound Bow": "博切克", "Prowler Burst PDW": "獵獸"
+    };
+
+    const AMMO = [
+      { key: "light", label: "Light", zh: "輕型彈藥", ja: "ライト" },
+      { key: "heavy", label: "Heavy", zh: "重型彈藥", ja: "ヘビー" },
+      { key: "energy", label: "Energy", zh: "能量彈藥", ja: "エネルギー" },
+      { key: "shotgun", label: "Shotgun", zh: "霰彈", ja: "ショットガン" },
+      { key: "sniper", label: "Sniper", zh: "狙擊彈藥", ja: "スナイパー" },
+      { key: "care", label: "Care Package", zh: "空投 / 特殊", ja: "ケアパッケージ" }
+    ];
+
+    const WEAPONS = [
+      { name: "R-301 Carbine", ammo: "light" }, { name: "R-99 SMG", ammo: "light" }, { name: "Alternator SMG", ammo: "light" }, { name: "RE-45 Auto", ammo: "energy" }, { name: "P2020", ammo: "light" }, { name: "G7 Scout", ammo: "care" },
+      { name: "VK-47 Flatline", ammo: "heavy" }, { name: "Hemlok Burst AR", ammo: "heavy" }, { name: "CAR SMG", ammo: "care" }, { name: "30-30 Repeater", ammo: "heavy" }, { name: "M600 Spitfire", ammo: "heavy" }, { name: "Wingman", ammo: "sniper" },
+      { name: "HAVOC Rifle", ammo: "energy" }, { name: "Nemesis Burst AR", ammo: "energy" }, { name: "Volt SMG", ammo: "energy" }, { name: "L-STAR EMG", ammo: "energy" }, { name: "Triple Take", ammo: "energy" }, { name: "Devotion LMG", ammo: "energy" },
+      { name: "Peacekeeper", ammo: "shotgun" }, { name: "Mastiff Shotgun", ammo: "shotgun" }, { name: "EVA-8 Auto", ammo: "shotgun" }, { name: "Mozambique Shotgun", ammo: "shotgun" },
+      { name: "Charge Rifle", ammo: "sniper" }, { name: "Longbow DMR", ammo: "sniper" }, { name: "Sentinel", ammo: "sniper" }, { name: "Prowler Burst PDW", ammo: "heavy" }, { name: "Rampage LMG", ammo: "heavy" }, 
+      { name: "Kraber .50-Cal", ammo: "care" }, { name: "Bocek Compound Bow", ammo: "care" }
+    ];
+
+    const COLORS = [
+      { fill: "#d8f4d0", border: "#145c25" },
+      { fill: "#8ed4ee", border: "#12506d" },
+      { fill: "#efc8ea", border: "#5b1d59" }
+    ];
+
+    function sample(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+    function sampleManyUnique(arr, count) {
+      const pool = [...arr];
+      const out = [];
+      while (pool.length && out.length < count) {
+        const idx = Math.floor(Math.random() * pool.length);
+        out.push(pool.splice(idx, 1)[0]);
+      }
+      return out;
+    }
+    function ammoLabel(key, lang) {
+      const found = AMMO.find(a => a.key === key);
+      return found ? (lang === "zh" ? found.zh : lang === "ja" ? found.ja : found.label) : key;
+    }
+    function legendLabel(name, lang) {
+      return lang === "zh" ? (LEGEND_ZH[name] || name) : name;
+    }
+    function weaponLabel(name, lang) {
+      return lang === "zh" ? (WEAPON_ZH[name] || name) : name;
+    }
+    function resultLabel(value, lang) {
+      if (AMMO.some(a => a.key === value)) return ammoLabel(value, lang);
+      return weaponLabel(value, lang);
+    }
+    function wikiFileUrl(fileName) {
+      return "https://apexlegends.wiki.gg/wiki/Special:Redirect/file/" + encodeURIComponent(fileName);
+    }
+    function legendImg(name) {
+      if (!name || name === "—") return "";
+      return "https://apexlegendsstatus.com/assets/legends/humanesas/" + (name + ".webp");
+    }
+    function weaponImg(name) {
+      if (!name || name === "—" || AMMO.some(a => a.key === name)) return "";
+      return wikiFileUrl(name + ".png");
+    }
+    function hideBrokenImage(e) {
+      e.currentTarget.classList.add("img-fallback");
+    }
+
+    function App() {
+      const [lang, setLang] = useState("zh");
+      const [theme, setTheme] = useState("dark");
+      const [players, setPlayers] = useState(3);
+      const [modes, setModes] = useState({ legends: true, ammoTypes: true, randomGuns: true });
+      const [selectedAmmo, setSelectedAmmo] = useState(AMMO.map(a => a.key));
+      const [noTeamDup, setNoTeamDup] = useState(false);
+      const [result, setResult] = useState(null);
+      const [history, setHistory] = useState([]);
+      const t = I18N[lang];
+
+      useEffect(() => { document.body.className = theme === "light" ? "light" : ""; }, [theme]);
+
+      const activeWeaponDraw = modes.ammoTypes || modes.randomGuns;
+      const shouldShowAmmoPool = modes.ammoTypes;
+      const warning = !Object.values(modes).some(Boolean) ? t.warningMode : (modes.ammoTypes && selectedAmmo.length === 0 ? t.warningAmmo : "");
+
+      function toggleMode(key) { setModes(prev => ({ ...prev, [key]: !prev[key] })); }
+      function toggleAmmo(key) { setSelectedAmmo(prev => prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key]); }
+
+      function draw() {
+        if (warning) return;
+        const legendPicks = modes.legends ? sampleManyUnique(LEGENDS, players) : [];
+        const availableWeapons = WEAPONS.filter(w => !modes.ammoTypes || selectedAmmo.includes(w.ammo));
+        let teamUsed = new Set();
+        const rows = Array.from({ length: players }, (_, i) => {
+          let guns = ["—", "—"];
+          let ammoTypes = [];
+          if (activeWeaponDraw) {
+            const ammoSource = modes.ammoTypes ? selectedAmmo : AMMO.map(a => a.key);
+            ammoTypes = [sample(ammoSource), sample(ammoSource)];
+            if (modes.randomGuns) {
+              const pickForAmmo = (ammoKey, already) => {
+                let pool = availableWeapons.filter(w => w.ammo === ammoKey);
+                if (!pool.length) pool = availableWeapons;
+                let filtered = pool.filter(w => !already.has(w.name) && (!noTeamDup || !teamUsed.has(w.name)));
+                if (!filtered.length) filtered = pool.filter(w => !already.has(w.name));
+                if (!filtered.length) filtered = pool;
+                return sample(filtered);
+              };
+              const personal = new Set();
+              const first = pickForAmmo(ammoTypes[0], personal);
+              personal.add(first.name); teamUsed.add(first.name);
+              const second = pickForAmmo(ammoTypes[1], personal);
+              personal.add(second.name); teamUsed.add(second.name);
+              guns = [first.name, second.name];
+            } else if (modes.ammoTypes) {
+              guns = ammoTypes.map(a => ammoLabel(a, lang));
+            }
+          }
+          return {
+            player: i + 1,
+            legend: modes.legends ? legendPicks[i] : "—",
+            guns,
+            ammoTypes
+          };
+        });
+        const entry = {
+          id: Date.now(),
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          players,
+          modes: Object.keys(modes).filter(k => modes[k]),
+          rows
+        };
+        setResult(entry);
+        setHistory(prev => [entry, ...prev].slice(0, 5));
+      }
+
+      return <div className="app">
+        <header className="hero">
+          <div>
+            <h1>{t.title}</h1>
+            <div className="subtitle">{t.sub}</div>
+          </div>
+          <div className="badge"><span>V1 / GitHub Pages Ready</span></div>
+        </header>
+
+        <section className="panel">
+          <div className="controls">
+            <div className="field"><label>{t.players}</label><select value={players} onChange={e => setPlayers(Number(e.target.value))}><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></div>
+            <div className="field"><label>{t.language}</label><select value={lang} onChange={e => setLang(e.target.value)}><option value="zh">繁體中文</option><option value="en">English</option><option value="ja">日本語</option></select></div>
+            <div className="field"><label>{t.theme}</label><select value={theme} onChange={e => setTheme(e.target.value)}><option value="dark">{t.dark}</option><option value="light">{t.light}</option></select></div>
+          </div>
+        </section>
+
+        <section className="panel">
+          <div className="toolbar">
+            <div>
+              <div className="group-title">{t.modes}</div>
+              <div className="option-grid">
+                <label className="option"><input type="checkbox" checked={modes.legends} onChange={() => toggleMode("legends")} />{t.legends}</label>
+                <label className="option"><input type="checkbox" checked={modes.ammoTypes} onChange={() => toggleMode("ammoTypes")} />{t.ammoTypes}</label>
+                <label className="option"><input type="checkbox" checked={modes.randomGuns} onChange={() => toggleMode("randomGuns")} />{t.randomGuns}</label>
+                <label className="option"><input type="checkbox" checked={noTeamDup} onChange={() => setNoTeamDup(!noTeamDup)} />{t.noTeamDup}</label>
+              </div>
+              {shouldShowAmmoPool && <>
+                <div className="group-title" style={{marginTop: 16}}>{t.ammoPool}</div>
+                <div className="option-grid">
+                  {AMMO.map(a => <label className="option" key={a.key}><input type="checkbox" checked={selectedAmmo.includes(a.key)} onChange={() => toggleAmmo(a.key)} />{ammoLabel(a.key, lang)}</label>)}
+                </div>
+              </>}
+              {warning && <div className="warn">⚠ {warning}</div>}
+            </div>
+            <button className="draw-btn" onClick={draw}><span>{t.draw}</span></button>
+          </div>
+        </section>
+
+        <section className="panel">
+          {result ? <ResultView entry={result} t={t} lang={lang} /> : <div className="empty">{t.noResult}</div>}
+        </section>
+
+        <section className="panel">
+          <div className="group-title" style={{fontSize: 16, color: "var(--text)", marginBottom: 12}}>{t.history}</div>
+          <div className="history">
+            {history.length === 0 ? <div className="empty" style={{padding: 12}}>{t.noResult}</div> : history.map(h => <HistoryItem key={h.id} entry={h} t={t} lang={lang} />)}
+          </div>
+        </section>
+      </div>;
+    }
+
+    function ResultView({ entry, t, lang }) {
+      return <div className="results" style={{gridTemplateColumns: `repeat(${entry.players}, minmax(220px, 1fr))`}}>
+        {entry.rows.map((row, i) => {
+          const c = COLORS[i];
+          return <div className="player-block" key={row.player} style={{"--fill": c.fill, "--border": c.border}}>
+            <div className="parallelogram legend-card">
+              <div>
+                {row.legend !== "—" && <div className="legend-frame">
+                  <img
+                    className="legend-art"
+                    src={legendImg(row.legend)}
+                    alt={legendLabel(row.legend, lang)}
+                    onError={hideBrokenImage}
+                  />
+                </div>}
+              </div>
+              
+            </div>
+            <div className="guns">
+              <div className="parallelogram gun-card"><div>
+                <div className="gun-title">{t.gun1}</div><div className="gun-name">{resultLabel(row.guns[0], lang)}</div></div></div>
+              <div className="parallelogram gun-card"><div>
+                <div className="gun-title">{t.gun2}</div><div className="gun-name">{resultLabel(row.guns[1], lang)}</div></div></div>
+            </div>
+          </div>;
+        })}
+      </div>;
+    }
+
+    function HistoryItem({ entry, t, lang }) {
+      const modeText = entry.modes.map(m => t[m]).join(" / ");
+      return <div className="history-item">
+        <div className="history-head"><span>{entry.time}</span><span>{entry.players}P｜{modeText}</span></div>
+        <div className="history-rows">
+          {entry.rows.map(r => <div key={r.player}><b>{t.player} {r.player}</b>：{legendLabel(r.legend, lang)}｜{resultLabel(r.guns[0], lang)} / {resultLabel(r.guns[1], lang)}</div>)}
+        </div>
+      </div>;
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
